@@ -86,19 +86,21 @@ class RemoteSequenceInfo:
                     else:  # peer_id in active_spans
                         active_spans[peer_id].end = block_index + 1
 
-            for peer_id in list(active_spans.keys()):
+            closed_spans.extend(
+                active_spans.pop(peer_id)
+                for peer_id in list(active_spans.keys())
                 if (
                     info is None
                     or peer_id not in info.servers
                     or info.servers[peer_id].state != ServerState.ONLINE
                     or block_index == len(block_infos) - 1
-                ):
-                    closed_spans.append(active_spans.pop(peer_id))
+                )
+            )
         assert not active_spans, f"spans: {active_spans}"
 
         closed_spans.sort(key=lambda span: span.length, reverse=True)
 
-        spans_containing_block = tuple(list() for _ in range(len(block_infos)))
+        spans_containing_block = tuple([] for _ in range(len(block_infos)))
         for span in closed_spans:
             for block_index in range(span.start, span.end):
                 spans_containing_block[block_index].append(span)

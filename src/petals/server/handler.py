@@ -185,7 +185,7 @@ class TransformerConnectionHandler(ConnectionHandler):
                             prompts = [p.squeeze(0) for p in prompts.to(requested_backends[0].dtype).split(1, dim=0)]
                             prompts = [prompt if not is_dummy(prompt) else None for prompt in prompts]
 
-                        if not (len(requested_backends) == len(prompts)):
+                        if len(requested_backends) != len(prompts):
                             raise ValueError(f"Received {len(prompts)} prompts for {len(requested_backends)} backends")
 
                         length_increment = hidden_states.shape[1]  # how many tokens are added this step (in each seq)
@@ -208,11 +208,8 @@ class TransformerConnectionHandler(ConnectionHandler):
                             for uid, handles in zip(requested_uids, cache_handles)
                         )
 
-                        if hidden_states.numel() == 0:
-                            pass  # user passed a tensor with 0 tokens. This is a special case that occurs, e.g.
-                            # when user wants to pre-allocate cache or check that server *can* allocate that cache
-                        else:
-                            assert hidden_states.ndim == 3, f"hidden states must be a single 3d tensor"
+                        if hidden_states.numel() != 0:
+                            assert hidden_states.ndim == 3, "hidden states must be a single 3d tensor"
                             (hidden_states,) = await self.module_backends[requested_uids[0]].inference_pool.submit_task(
                                 hidden_states, hypo_ids, inference_infos, *prompts, priority=priority
                             )
@@ -417,7 +414,9 @@ class TransformerConnectionHandler(ConnectionHandler):
             assert isinstance(metadata["output_compression"], (list, tuple)), "output_compression must be a tuple/list"
             output_compression = tuple(metadata["output_compression"])
             assert all(isinstance(c, int) for c in output_compression), "output_compression must contain integers"
-            assert len(output_compression) == 1, f"output_compression tuple should have 1 element"
+            assert (
+                len(output_compression) == 1
+            ), "output_compression tuple should have 1 element"
         else:
             output_compression = tuple(tensor.compression for tensor in outputs_schema)
 
@@ -492,7 +491,7 @@ class TransformerConnectionHandler(ConnectionHandler):
     ) -> Sequence[runtime_pb2.Tensor]:
         """Serialize backward gradients w.r.t. inputs using either default schema or custom user-specified schema"""
         # Modify grad_inputs_schema to support grad_prompts
-        assert len(requested_backends[0].args_schema) == 1 and len(grads) in (1, 2)  # TODO generalize
+        assert len(requested_backends[0].args_schema) == 1 and len(grads) in {1, 2}
         flat_grads_schema = tuple(
             nested_flatten((requested_backends[0].args_schema * len(grads), requested_backends[0].kwargs_schema))
         )  # TODO generalize
@@ -548,7 +547,7 @@ class TransformerConnectionHandler(ConnectionHandler):
         else:
             friendly_uids = "n/a"
 
-        friendly_remote_id = "..." + str(context.remote_id)[-6:]
+        friendly_remote_id = f"...{str(context.remote_id)[-6:]}"
 
         message = f"{method}(blocks={friendly_uids}, remote_peer={friendly_remote_id})"
         if warning is not None:
@@ -570,8 +569,7 @@ class TransformerConnectionHandler(ConnectionHandler):
 
         if request.uid:
             block_info = self.module_backends[request.uid].get_info()
-            common_keys = set(result.keys()) & set(block_info.keys())
-            if common_keys:
+            if common_keys := set(result.keys()) & set(block_info.keys()):
                 raise RuntimeError(f"The block's rpc_info has keys reserved for the server's rpc_info: {common_keys}")
             result.update(block_info)
 

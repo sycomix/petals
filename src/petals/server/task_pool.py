@@ -65,7 +65,7 @@ class PrioritizedTaskPool(TaskPoolBase):
         self._ordered_tasks = PriorityQueue()  # interaction with Runtime - only valid inside Runtime
 
         self._prioritizer_thread = threading.Thread(
-            name=self.name + "_prioritizer",
+            name=f"{self.name}_prioritizer",
             target=self._prioritize_tasks,
             args=[self.submitted_tasks, self._ordered_tasks],
             daemon=True,

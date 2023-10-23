@@ -16,6 +16,4 @@ class DummyTaskPrioritizer(TaskPrioritizerBase):
     """Simple implementation of TaskPrioritizer which gives constant zero priority for every task"""
 
     def prioritize(self, *input: torch.Tensor, points: float = 0.0, **kwargs) -> float:
-        if kwargs.get("type") == "inference":
-            return 1.0  # inference steps go first since they are more latency-sensitive
-        return 2.0  # forward, backward
+        return 1.0 if kwargs.get("type") == "inference" else 2.0

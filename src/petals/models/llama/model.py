@@ -46,7 +46,7 @@ class DistributedLlamaModel(FromPretrainedMixin, PTuneMixin, LlamaModel):
         assert attention_mask is None, f"{self.__class__.__name__} does not support attention masks right now"
 
         for k, v in kwargs.items():
-            if not (v is None or v is False):
+            if v is not None and v is not False:
                 logger.debug(f"Extra keyword arguments are not yet supported (got {k} = {v})")
 
         if input_ids is not None and inputs_embeds is not None:

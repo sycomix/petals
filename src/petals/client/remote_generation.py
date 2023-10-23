@@ -103,12 +103,11 @@ class RemoteGenerationMixin:
             assert isinstance(inputs, torch.Tensor) and inputs.ndim == 2, "inputs must be a 2d tensor [batch, length]"
             if resuming_session:
                 inputs = torch.cat([session.last_token_id, inputs], dim=1)
+        elif resuming_session:
+            inputs = session.last_token_id
         else:
-            if resuming_session:
-                inputs = session.last_token_id
-            else:
-                assert bos_token_id is not None, "You have to provide a bos_token_id if you do not provide inputs"
-                inputs = torch.tensor([[bos_token_id]] * num_beams, dtype=torch.long, device=self.device)
+            assert bos_token_id is not None, "You have to provide a bos_token_id if you do not provide inputs"
+            inputs = torch.tensor([[bos_token_id]] * num_beams, dtype=torch.long, device=self.device)
         batch_size = inputs.size(0)
 
         if decoding_algorithm is None:
@@ -133,10 +132,9 @@ class RemoteGenerationMixin:
         if num_return_sequences is None:
             num_return_sequences = 1
 
-        assert num_return_sequences <= num_beams, (
-            f"You want more sequences than the beam has."
-            " Check num_return_sequences: {num_return_sequences} and num_beams: {num_beams}."
-        )
+        assert (
+            num_return_sequences <= num_beams
+        ), 'You want more sequences than the beam has. Check num_return_sequences: {num_return_sequences} and num_beams: {num_beams}.'
 
         constraints = self._get_constraints(
             inputs=inputs,
@@ -343,7 +341,6 @@ class RemoteGenerationMixin:
         pad_token_id: Optional[int] = None,
         provided_constraints: List[ABCBloomConstraint] = [],
     ) -> List[ABCBloomConstraint]:
-        constraints = []
-        constraints.extend(provided_constraints)
+        constraints = list(provided_constraints)
         constraints.append(EosConstraint(inputs, eos_token_id, pad_token_id))
         return constraints
